@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="uk" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Humans 2.0 Engine</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brandDark: '#07090E',
+            brandCard: '#0F121C',
+            brandBorder: '#1A2133',
+            neonGreen: '#00FF88',
+            neonPurple: '#9D00FF',
+            neonRed: '#FF3366',
+            neonBlue: '#00E5FF',
+            neonYellow: '#FFD700',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    html, body {
+      -webkit-text-size-adjust: 100%;
+      touch-action: manipulation;
+      overscroll-behavior-y: none;
+      min-height: 100vh;
+      min-height: -webkit-fill-available;
+      background-color: #07090E;
+      color: #E2E8F0;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: -1;
+      background-color: #07090E;
+      background-image: 
+        radial-gradient(circle at 50% 0%, rgba(157, 0, 255, 0.15), transparent 60%),
+        radial-gradient(circle at 85% 100%, rgba(0, 229, 255, 0.1), transparent 50%),
+        radial-gradient(rgba(0, 255, 136, 0.15) 1px, transparent 1px),
+        linear-gradient(to right, rgba(26, 33, 51, 0.4) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(26, 33, 51, 0.4) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 24px 24px, 24px 24px, 24px 24px;
+      pointer-events: none;
+    }
+
+    input, select, textarea { font-size: 16px !important; }
+    @media (min-width: 640px) { input, select, textarea { font-size: 0.75rem !important; } }
+
+    .tech-backdrop {
+      position: relative;
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 0.375rem;
+      background: rgba(15, 18, 28, 0.85);
+      border: 1px solid rgba(0, 255, 136, 0.3);
+      box-shadow: 0 0 12px rgba(0, 255, 136, 0.15), inset 0 0 8px rgba(0, 255, 136, 0.05);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    .tech-backdrop::before {
+      content: '';
+      position: absolute;
+      top: -1px; left: 4px; right: 4px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #00FF88, transparent);
+    }
+    
+    .neon-border { border: 1px solid rgba(0, 255, 136, 0.25); box-shadow: 0 0 20px rgba(0, 255, 136, 0.05); backdrop-filter: blur(16px); }
+    .neon-border-purple { border: 1px solid rgba(157, 0, 255, 0.25); box-shadow: 0 0 20px rgba(157, 0, 255, 0.05); backdrop-filter: blur(16px); }
+    .neon-border-blue { border: 1px solid rgba(0, 229, 255, 0.25); box-shadow: 0 0 20px rgba(0, 229, 255, 0.05); backdrop-filter: blur(16px); }
+    .neon-border-red { border: 1px solid rgba(255, 51, 102, 0.3); box-shadow: 0 0 20px rgba(255, 51, 102, 0.08); backdrop-filter: blur(16px); }
+
+    .hm-cell { transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); position: relative; }
+    .hm-cell:hover { transform: scale(1.35); z-index: 40; box-shadow: 0 0 12px rgba(0, 255, 136, 0.8); border-color: #00FF88 !important; border-radius: 4px; }
+    .hm-current-time { border: 1px solid #00E5FF !important; box-shadow: 0 0 8px rgba(0, 229, 255, 0.6); z-index: 20; animation: pulseGlow 1.8s infinite alternate; }
+
+    @keyframes pulseGlow { 0% { box-shadow: 0 0 3px #00E5FF; } 100% { box-shadow: 0 0 10px #00E5FF, inset 0 0 4px #00E5FF; } }
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: #07090E; }
+    ::-webkit-scrollbar-thumb { background: #1A2133; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #00FF88; }
+  </style>
+</head>
+<body class="min-h-screen p-4 md:p-6 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-[calc(1rem+env(safe-area-inset-top))]">
+
+  <div class="max-w-[1600px] mx-auto space-y-6">
+
+    <!-- Header -->
+    <header class="flex flex-col md:flex-row justify-between items-center p-4 bg-brandCard/90 rounded-2xl neon-border gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-neonGreen to-neonPurple flex items-center justify-center font-bold text-black text-xl shadow-lg shadow-neonGreen/20">H2</div>
+        <div>
+          <h1 class="text-xl font-bold tracking-wider text-white">HUMANS <span class="tech-backdrop text-neonGreen font-mono">2.0</span> ENGINE</h1>
+          <p class="text-xs text-gray-400 mt-0.5">Обчислювальний движок аналізу угод та покупців</p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap gap-3 items-center">
+        <div id="tgUserBadge" class="flex items-center gap-2 bg-brandDark px-3 py-1.5 rounded-xl border border-neonBlue/40 text-xs">
+          <span class="w-2 h-2 rounded-full bg-neonBlue animate-pulse"></span>
+          <span id="tgUserName" class="font-bold text-neonBlue">Telegram Auth</span>
+          <button onclick="loginWithTelegramPrompt()" class="text-[10px] text-gray-400 hover:text-white underline ml-1">Змінити</button>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2 bg-brandDark px-3 py-1.5 rounded-xl border border-brandBorder">
+          <span class="text-xs text-gray-400 font-bold">Сорт:</span>
+          <select id="varietySelect" onchange="onVarietyChange(this.value)" class="bg-transparent text-xs text-neonGreen font-bold focus:outline-none cursor-pointer"></select>
+          <span class="text-xs text-gray-500 font-bold">|</span>
+          <span class="text-xs text-gray-400 font-bold">Закупка 100г (€):</span>
+          <input type="number" id="costPer100gInput" onchange="updateVarietyData()" class="w-16 bg-brandCard border border-brandBorder rounded px-1.5 py-0.5 text-xs text-white font-mono focus:outline-none focus:border-neonGreen" value="600" step="1" />
+          <span class="text-xs text-gray-500 font-bold">|</span>
+          <span class="text-xs text-gray-400 font-bold">Закупено (г):</span>
+          <input type="number" id="purchasedGramsInput" onchange="updateVarietyData()" class="w-16 bg-brandCard border border-brandBorder rounded px-1.5 py-0.5 text-xs text-neonYellow font-mono focus:outline-none focus:border-neonYellow" value="0" step="1" />
+        </div>
+
+        <div class="text-right mr-1 hidden sm:block">
+          <p class="text-[10px] text-gray-400">Час системи:</p>
+          <p id="liveClock" class="text-xs font-mono font-bold text-neonBlue">--:--:--</p>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+
+      <!-- Left Column -->
+      <div class="lg:col-span-1 space-y-6">
+        
+        <div class="bg-brandCard/90 p-4 rounded-2xl neon-border space-y-3">
+          <div class="flex justify-between items-center">
+            <h2 class="text-xs font-bold tracking-wider uppercase text-gray-300">Вхідні дані</h2>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-neonGreen/10 text-neonGreen border border-neonGreen/30 font-mono">Journal Input</span>
+          </div>
+          <textarea id="rawInput" class="w-full h-64 p-2.5 bg-brandDark/90 rounded-xl border border-brandBorder text-xs font-mono text-gray-200 focus:outline-none focus:border-neonGreen/50 transition resize-none leading-relaxed" placeholder="Вставити журнал угод..."></textarea>
+          <div class="grid grid-cols-3 gap-2">
+            <button onclick="processData()" class="col-span-2 py-2.5 bg-gradient-to-r from-neonGreen to-emerald-400 text-black font-bold text-xs rounded-xl shadow-lg shadow-neonGreen/20 hover:opacity-95 transition">Оновити / Розрахувати</button>
+            <button onclick="clearInputField()" class="col-span-1 py-2.5 bg-brandBorder hover:bg-red-900/30 text-red-400 border border-red-500/30 font-semibold text-xs rounded-xl transition shadow-sm">Очистити</button>
+          </div>
+        </div>
+
+        <!-- Категорії Витрат -->
+        <div class="bg-brandCard/90 p-4 rounded-2xl neon-border-red space-y-3">
+          <div class="flex justify-between items-center">
+            <h3 class="text-xs font-bold uppercase text-neonRed flex items-center gap-1.5">📉 Категорії витрат</h3>
+            <span class="text-[10px] text-gray-400 font-mono">Загальні витрати</span>
+          </div>
+
+          <div class="flex gap-1.5">
+            <input type="text" id="newExpenseCategoryInput" placeholder="Логістика, Реклама..." class="w-full bg-brandDark border border-brandBorder rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-neonRed" />
+            <button onclick="addNewExpenseCategory()" class="px-3 py-1 bg-neonRed/20 hover:bg-neonRed/30 text-neonRed border border-neonRed/40 rounded-lg text-xs font-bold transition">+</button>
+          </div>
+
+          <div id="expenseCategoriesContainer" class="space-y-2 max-h-52 overflow-y-auto pr-1">
+            <p class="text-gray-500 text-xs">Немає доданих витрат</p>
+          </div>
+
+          <div class="pt-2 border-t border-brandBorder/60 flex justify-between items-center text-xs">
+            <span class="text-gray-400 font-medium">Всього витрат:</span>
+            <span id="totalExpensesSumLabel" class="font-mono font-bold text-neonRed">0.00 €</span>
+          </div>
+        </div>
+
+        <!-- Debts Breakdown -->
+        <div class="space-y-4">
+          <div class="bg-brandCard/90 p-4 rounded-2xl border border-red-500/20">
+            <h3 class="text-xs font-bold uppercase text-neonRed mb-2">🔴 Активні борги клієнтів</h3>
+            <div id="activeDebtsList" class="text-xs space-y-1.5 max-h-36 overflow-y-auto text-gray-300"><p class="text-gray-500">Немає даних</p></div>
+          </div>
+
+          <div class="bg-brandCard/90 p-4 rounded-2xl border border-emerald-500/20">
+            <h3 class="text-xs font-bold uppercase text-emerald-400 mb-2">🟢 Погашення боргів</h3>
+            <div id="repaidDebtsList" class="text-xs space-y-1.5 max-h-36 overflow-y-auto text-gray-300"><p class="text-gray-500">Немає даних</p></div>
+          </div>
+
+          <div class="bg-brandCard/90 p-4 rounded-2xl border border-cyan-500/20">
+            <h3 class="text-xs font-bold uppercase text-neonBlue mb-2">⚡ Аванси / Мої</h3>
+            <div id="advancesList" class="text-xs space-y-1.5 max-h-36 overflow-y-auto text-gray-300"><p class="text-gray-500">Немає даних</p></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right Dashboard Column -->
+      <div class="lg:col-span-3 space-y-6">
+
+        <!-- KPI Блоки -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div class="bg-brandCard/90 p-3 rounded-xl neon-border">
+            <p class="text-[10px] font-medium text-neonGreen">Виручка з угод</p>
+            <p class="text-sm sm:text-base font-black text-neonGreen mt-1" id="kpiGrossRevenue">0.00 €</p>
+            <p class="text-[9px] text-gray-500 mt-0.5">(Загальна за прайсом)</p>
+          </div>
+
+          <div class="bg-brandCard/90 p-3 rounded-xl neon-border">
+            <p class="text-[10px] font-medium text-gray-400">Фактична виручка</p>
+            <p class="text-sm sm:text-base font-black text-white mt-1" id="kpiRevenue">0.00 €</p>
+            <p class="text-[9px] text-gray-500 mt-0.5">(Виручка − Борги − Витрати)</p>
+          </div>
+
+          <div class="bg-brandCard/90 p-3 rounded-xl neon-border-blue col-span-2 sm:col-span-1">
+            <p class="text-[10px] font-medium text-neonBlue">Чистий прибуток</p>
+            <div class="mt-1 space-y-0.5">
+              <div class="flex justify-between items-baseline gap-1">
+                <span class="text-[9px] text-gray-400">З угод:</span>
+                <span class="text-xs font-bold text-gray-200" id="kpiNetProfitRaw">0.00 €</span>
+              </div>
+              <div class="flex justify-between items-baseline gap-1 pt-0.5 border-t border-brandBorder/50">
+                <span class="text-[9px] text-neonBlue font-semibold">З урахуванням витрат:</span>
+                <span class="text-sm font-black text-neonBlue" id="kpiNetProfitFinal">0.00 €</span>
+              </div>
+              <div class="flex justify-between items-baseline gap-1 pt-0.5 border-t border-brandBorder/50">
+                <span class="text-[9px] text-neonYellow font-semibold">На руках (з боргами):</span>
+                <span class="text-xs font-bold text-neonYellow" id="kpiNetProfitWithDebt">0.00 €</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-brandCard/90 p-3 rounded-xl neon-border">
+            <p class="text-[10px] font-medium text-gray-400">Собівартість</p>
+            <p class="text-sm sm:text-base font-black text-neonRed mt-1" id="kpiCostOfGoods">0.00 €</p>
+          </div>
+
+          <div class="bg-brandCard/90 p-3 rounded-xl neon-border">
+            <p class="text-[10px] font-medium text-gray-400">Активний борг</p>
+            <p class="text-sm sm:text-base font-black text-neonYellow mt-1" id="kpiActiveDebt">0.00 €</p>
+          </div>
+
+          <div class="bg-brandCard/90 p-3 rounded-xl neon-border-purple">
+            <p class="text-[10px] font-medium text-neonPurple">Угод / Точна вага</p>
+            <div class="flex justify-between items-baseline mt-1">
+              <span class="text-sm sm:text-base font-black text-neonPurple" id="kpiDeals">0</span>
+              <span class="text-xs font-mono font-bold text-gray-300" id="kpiExactWeight">0.00 г</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="bg-brandCard/90 p-4 rounded-2xl neon-border">
+            <h3 class="text-xs font-bold text-gray-300 uppercase mb-2">Точна вага за сортами (г)</h3>
+            <div class="h-44 relative"><canvas id="weightBarChart"></canvas></div>
+          </div>
+          <div class="bg-brandCard/90 p-4 rounded-2xl neon-border">
+            <h3 class="text-xs font-bold text-gray-300 uppercase mb-2">Виручка за сортами (€)</h3>
+            <div class="h-44 relative"><canvas id="revenuePieChart"></canvas></div>
+          </div>
+        </div>
+
+        <!-- HEATMAP -->
+        <div class="bg-brandCard/90 p-4 rounded-2xl neon-border space-y-3">
+          <div class="flex flex-col sm:flex-row justify-between items-center gap-2 border-b border-brandBorder/80 pb-2.5">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-neonGreen animate-pulse"></span>
+              <h3 class="text-xs font-bold text-gray-200 uppercase tracking-wide">Теплова карта угод</h3>
+              <span class="text-[10px] text-gray-400 font-mono bg-brandDark px-2 py-0.5 rounded border border-brandBorder" id="heatmapPeriodText">--.-- - --.--</span>
+            </div>
+
+            <div class="flex items-center gap-1.5">
+              <button onclick="shiftWeek(-1)" class="px-2 py-0.5 text-[10px] font-mono bg-brandDark hover:bg-brandBorder text-gray-300 rounded border border-brandBorder transition">←</button>
+              <button onclick="resetToCurrentWeek()" class="px-2.5 py-0.5 text-[10px] font-semibold bg-neonGreen/10 text-neonGreen hover:bg-neonGreen/20 rounded border border-neonGreen/30 transition">Сьогодні</button>
+              <button onclick="shiftWeek(1)" class="px-2 py-0.5 text-[10px] font-mono bg-brandDark hover:bg-brandBorder text-gray-300 rounded border border-brandBorder transition">→</button>
+              <input type="date" id="heatmapDatePicker" onchange="onDatePicked(this.value)" class="px-1.5 py-0.5 bg-brandDark text-[10px] text-gray-300 border border-brandBorder rounded focus:outline-none">
+            </div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <div class="min-w-[680px]">
+              <div class="grid grid-cols-[60px_repeat(24,1fr)] gap-1 mb-1 text-[9px] font-mono text-gray-500">
+                <div></div>
+                <div class="col-span-6 text-left pl-0.5">00:00</div>
+                <div class="col-span-6 text-left pl-0.5">06:00</div>
+                <div class="col-span-6 text-left pl-0.5">12:00</div>
+                <div class="col-span-6 text-left pl-0.5">18:00</div>
+              </div>
+              <div id="heatmapGridRows" class="space-y-1"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- СТАТИСТИКА СОРТІВ ТА ТОП 5 КЛІЄНТІВ -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="bg-brandCard/90 p-5 rounded-2xl neon-border space-y-4">
+            <div class="flex justify-between items-center">
+              <h2 class="text-xs font-bold tracking-wider uppercase text-neonGreen flex items-center gap-2">🌿 Статистика сортів</h2>
+              <span class="text-[10px] text-gray-400 font-mono">Обсяги та виручка</span>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs text-gray-300">
+                <thead class="bg-brandDark/90 text-gray-400 uppercase text-[10px]">
+                  <tr>
+                    <th class="p-2.5">Сорт</th>
+                    <th class="p-2.5 text-center">Угод</th>
+                    <th class="p-2.5 text-neonGreen">Точна вага (г)</th>
+                    <th class="p-2.5 text-white">Виручка (€)</th>
+                    <th class="p-2.5 text-neonBlue">Прибуток (€)</th>
+                  </tr>
+                </thead>
+                <tbody id="varietyStatsTableBody" class="divide-y divide-brandBorder/60">
+                  <tr><td colspan="5" class="p-4 text-center text-gray-500">Записи відсутні</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="bg-brandCard/90 p-5 rounded-2xl neon-border-purple space-y-4">
+            <div class="flex justify-between items-center">
+              <h2 class="text-xs font-bold tracking-wider uppercase text-neonPurple flex items-center gap-2">👑 Топ 5 клієнтів</h2>
+              <span class="text-[10px] text-gray-400 font-mono">За точною вагою</span>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs text-gray-300">
+                <thead class="bg-brandDark/90 text-gray-400 uppercase text-[10px]">
+                  <tr>
+                    <th class="p-2.5">#</th>
+                    <th class="p-2.5">Клієнт</th>
+                    <th class="p-2.5 text-center">Угод</th>
+                    <th class="p-2.5 text-neonGreen">Точна вага (г)</th>
+                    <th class="p-2.5 text-white">Виручка (€)</th>
+                  </tr>
+                </thead>
+                <tbody id="topBuyersTableBody" class="divide-y divide-brandBorder/60">
+                  <tr><td colspan="5" class="p-4 text-center text-gray-500">Записи відсутні</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Detailed Table -->
+    <div class="bg-brandCard/90 p-5 rounded-2xl neon-border space-y-4">
+      <div class="flex justify-between items-center flex-wrap gap-2">
+        <h2 class="text-sm font-bold tracking-wider uppercase text-gray-300">Журнал розпарсених угод</h2>
+        <input type="text" id="tableSearch" onkeyup="filterTable()" placeholder="Пошук..." class="px-3 py-1.5 bg-brandDark/90 rounded-lg border border-brandBorder text-xs text-gray-200 focus:outline-none">
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs text-gray-300">
+          <thead class="bg-brandDark/90 text-gray-400 uppercase text-[10px]">
+            <tr>
+              <th class="p-3">Сорт</th>
+              <th class="p-3">Клієнт</th>
+              <th class="p-3">Базова вага</th>
+              <th class="p-3 text-neonGreen">Точна вага (*1.1)</th>
+              <th class="p-3 text-neonRed">Ціна за 1г</th>
+              <th class="p-3 text-neonRed">Собівартість (€)</th>
+              <th class="p-3 font-bold text-white">Виручка (€)</th>
+              <th class="p-3 text-neonBlue">Прибуток угоди (€)</th>
+              <th class="p-3 text-neonYellow">🎁 Бонус</th>
+              <th class="p-3">Запис боргу/мої/карта</th>
+              <th class="p-3">Час</th>
+              <th class="p-3 text-center">Дії</th>
+            </tr>
+          </thead>
+          <tbody id="recordsTableBody" class="divide-y divide-brandBorder"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    let barChart, pieChart;
+    let currentUser = 'default_tg';
+    let telegramUser = null;
+    let storedRecordsMap = {};
+    let parsedRecordsGlobal = [];
+
+    let customExpenseCategories = {};
+    let selectedWeekStart = getMonday(new Date());
+
+    let GLOBAL_VARIETIES = {
+      'BANNAN': { costPer100g: 600, purchasedGrams: 0 },
+      'SKITTLES': { costPer100g: 660, purchasedGrams: 0 }
+    };
+
+    function loadGlobalVarieties() {
+      const savedVarieties = localStorage.getItem('h2_global_cost_per_100g');
+      if (savedVarieties) {
+        try {
+          const parsed = JSON.parse(savedVarieties);
+          Object.keys(parsed).forEach(k => {
+            if (typeof parsed[k] === 'number') {
+              GLOBAL_VARIETIES[k] = { costPer100g: parsed[k], purchasedGrams: 0 };
+            } else {
+              GLOBAL_VARIETIES[k] = parsed[k];
+            }
+          });
+        } catch(e) { console.error('Error loading global varieties', e); }
+      }
+      populateVarietyDropdown();
+    }
+
+    function saveGlobalVarieties() {
+      localStorage.setItem('h2_global_cost_per_100g', JSON.stringify(GLOBAL_VARIETIES));
+    }
+
+    function populateVarietyDropdown(selectedVal = null) {
+      const select = document.getElementById('varietySelect');
+      const currentSelected = selectedVal || select.value || 'BANNAN';
+      
+      select.innerHTML = '';
+      
+      Object.keys(GLOBAL_VARIETIES).forEach(variety => {
+        const option = document.createElement('option');
+        option.value = variety;
+        option.text = variety;
+        option.className = "bg-brandDark text-white";
+        select.appendChild(option);
+      });
+
+      const addOption = document.createElement('option');
+      addOption.value = 'NEW';
+      addOption.text = '+ Інший сорт';
+      addOption.className = "bg-brandDark text-white";
+      select.appendChild(addOption);
+
+      if (GLOBAL_VARIETIES[currentSelected]) {
+        select.value = currentSelected;
+      } else {
+        select.value = Object.keys(GLOBAL_VARIETIES)[0] || 'BANNAN';
+      }
+
+      updateHeaderInputs(select.value);
+    }
+
+    function updateHeaderInputs(variety) {
+      const costInput = document.getElementById('costPer100gInput');
+      const purchasedInput = document.getElementById('purchasedGramsInput');
+      
+      const data = GLOBAL_VARIETIES[variety] || { costPer100g: 600, purchasedGrams: 0 };
+      costInput.value = (data.costPer100g || 0).toFixed(0);
+      purchasedInput.value = (data.purchasedGrams || 0).toFixed(0);
+    }
+
+    function registerVariety(varietyName, defaultCost = 600, purchasedGrams = 0) {
+      const upperName = varietyName.trim().toUpperCase();
+      if (!upperName || upperName === 'NEW') return;
+
+      if (!GLOBAL_VARIETIES[upperName]) {
+        GLOBAL_VARIETIES[upperName] = { costPer100g: defaultCost, purchasedGrams: purchasedGrams };
+        saveGlobalVarieties();
+        populateVarietyDropdown(upperName);
+      }
+    }
+
+    function initTelegramAuth() {
+      if (window.Telegram && window.Telegram.WebApp) {
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+
+        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+          telegramUser = tg.initDataUnsafe.user;
+          currentUser = `tg_${telegramUser.id}`;
+          updateTgBadgeUI(`${telegramUser.first_name || ''} (@${telegramUser.username || telegramUser.id})`);
+        } else {
+          const savedTgUser = localStorage.getItem('h2_tg_user_session');
+          if (savedTgUser) {
+            telegramUser = JSON.parse(savedTgUser);
+            currentUser = `tg_${telegramUser.id}`;
+            updateTgBadgeUI(`${telegramUser.name} (@${telegramUser.id})`);
+          } else {
+            loginWithTelegramPrompt();
+          }
+        }
+      } else {
+        loginWithTelegramPrompt();
+      }
+    }
+
+    function loginWithTelegramPrompt() {
+      const username = prompt('Введіть ваш Telegram Username або ID:', 'Alesha_TG');
+      if (username) {
+        const cleanName = username.replace('@', '').trim();
+        telegramUser = { id: cleanName, name: cleanName };
+        currentUser = `tg_${cleanName}`;
+        localStorage.setItem('h2_tg_user_session', JSON.stringify(telegramUser));
+        updateTgBadgeUI(`@${cleanName}`);
+        loadUserData();
+        processData();
+      } else {
+        updateTgBadgeUI('Гість (default)');
+      }
+    }
+
+    function updateTgBadgeUI(text) {
+      const badgeElem = document.getElementById('tgUserName');
+      if (badgeElem) badgeElem.innerText = text;
+    }
+
+    function onVarietyChange(variety) {
+      if (variety === 'NEW') {
+        const newVarietyName = prompt('Введіть назву нового сорту:');
+        if (newVarietyName) {
+          const upperName = newVarietyName.trim().toUpperCase();
+          registerVariety(upperName, 600, 0);
+          variety = upperName;
+        } else {
+          variety = 'BANNAN';
+          document.getElementById('varietySelect').value = 'BANNAN';
+        }
+      }
+      
+      updateHeaderInputs(variety);
+      processData();
+    }
+
+    function updateVarietyData() {
+      const variety = document.getElementById('varietySelect').value;
+      const costVal = parseFloat(document.getElementById('costPer100gInput').value);
+      const purchasedVal = parseFloat(document.getElementById('purchasedGramsInput').value);
+
+      if (!GLOBAL_VARIETIES[variety]) {
+        GLOBAL_VARIETIES[variety] = { costPer100g: 600, purchasedGrams: 0 };
+      }
+
+      if (!isNaN(costVal) && costVal >= 0) GLOBAL_VARIETIES[variety].costPer100g = costVal;
+      if (!isNaN(purchasedVal) && purchasedVal >= 0) GLOBAL_VARIETIES[variety].purchasedGrams = purchasedVal;
+
+      saveGlobalVarieties();
+      processData();
+    }
+
+    function addNewExpenseCategory() {
+      const input = document.getElementById('newExpenseCategoryInput');
+      const categoryName = input.value.trim();
+      if (!categoryName) return;
+
+      if (!customExpenseCategories[categoryName]) {
+        customExpenseCategories[categoryName] = 0;
+        saveUserData();
+        renderExpenseCategories();
+        processData();
+      }
+      input.value = '';
+    }
+
+    function updateExpenseCategoryValue(categoryName, valStr) {
+      const val = parseFloat(valStr);
+      customExpenseCategories[categoryName] = !isNaN(val) && val >= 0 ? val : 0;
+      saveUserData();
+      processData();
+    }
+
+    function removeExpenseCategory(categoryName) {
+      delete customExpenseCategories[categoryName];
+      saveUserData();
+      renderExpenseCategories();
+      processData();
+    }
+
+    function renderExpenseCategories() {
+      const container = document.getElementById('expenseCategoriesContainer');
+      const keys = Object.keys(customExpenseCategories);
+
+      if (keys.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 text-xs">Немає доданих витрат</p>';
+        return;
+      }
+
+      container.innerHTML = keys.map(cat => {
+        const isAuto = cat === 'KARTE';
+        return `
+        <div class="flex items-center justify-between gap-2 bg-brandDark/80 p-1.5 rounded-lg border border-brandBorder">
+          <span class="text-xs font-medium ${cat === 'KARTE' ? 'text-neonBlue font-bold' : 'text-gray-200'} truncate" title="${cat}">${cat}</span>
+          <div class="flex items-center gap-1">
+            <input type="number" 
+                   value="${customExpenseCategories[cat]}" 
+                   onchange="updateExpenseCategoryValue('${cat}', this.value)"
+                   ${isAuto ? 'readonly' : ''}
+                   class="w-20 bg-brandCard border border-brandBorder rounded px-1.5 py-0.5 text-xs text-neonRed font-mono font-bold focus:outline-none focus:border-neonRed ${isAuto ? 'opacity-80 cursor-not-allowed' : ''}" 
+                   placeholder="0" step="0.01" min="0" />
+            <span class="text-[10px] text-gray-400">€</span>
+            <button onclick="removeExpenseCategory('${cat}')" class="text-gray-500 hover:text-red-400 font-bold px-1 text-sm">×</button>
+          </div>
+        </div>
+      `;
+      }).join('');
+    }
+
+    function getMonday(d) {
+      const date = new Date(d);
+      const day = date.getDay();
+      const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+      const monday = new Date(date.setDate(diff));
+      monday.setHours(0, 0, 0, 0);
+      return monday;
+    }
+
+    function updateClock() {
+      const now = new Date();
+      const clockElem = document.getElementById('liveClock');
+      const daysShort = ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+      const dayName = daysShort[now.getDay()];
+      const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      if(clockElem) clockElem.innerText = `${dayName}, ${timeStr}`;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    const COLOR_PALETTE = [
+      { bg: 'rgba(255, 215, 0, 0.15)', border: '#FFD700', text: '#FFD700' },
+      { bg: 'rgba(0, 229, 255, 0.15)', border: '#00E5FF', text: '#00E5FF' },
+      { bg: 'rgba(157, 0, 255, 0.15)', border: '#9D00FF', text: '#C084FC' },
+      { bg: 'rgba(0, 255, 136, 0.15)', border: '#00FF88', text: '#00FF88' },
+      { bg: 'rgba(255, 51, 102, 0.15)', border: '#FF3366', text: '#FF3366' }
+    ];
+
+    const categoryColorMap = {};
+
+    function getCategoryStyle(catName) {
+      const upper = catName.toUpperCase();
+      if (!categoryColorMap[upper]) {
+        const keys = Object.keys(categoryColorMap);
+        const paletteIndex = keys.length % COLOR_PALETTE.length;
+        categoryColorMap[upper] = COLOR_PALETTE[paletteIndex];
+      }
+      return categoryColorMap[upper];
+    }
+
+    function loadUserData() {
+      const savedRecords = localStorage.getItem(`h2_records_${currentUser}`);
+      storedRecordsMap = savedRecords ? JSON.parse(savedRecords) : {};
+
+      const savedExpenses = localStorage.getItem(`h2_expenses_${currentUser}`);
+      customExpenseCategories = savedExpenses ? JSON.parse(savedExpenses) : {};
+
+      const savedRaw = localStorage.getItem(`h2_raw_logs_${currentUser}`);
+      document.getElementById('rawInput').value = savedRaw || '';
+
+      renderExpenseCategories();
+    }
+
+    function saveUserData() {
+      localStorage.setItem(`h2_records_${currentUser}`, JSON.stringify(storedRecordsMap));
+      localStorage.setItem(`h2_expenses_${currentUser}`, JSON.stringify(customExpenseCategories));
+      localStorage.setItem(`h2_raw_logs_${currentUser}`, document.getElementById('rawInput').value);
+    }
+
+    function removeRecord(id) {
+      delete storedRecordsMap[id];
+      saveUserData();
+      processData();
+    }
+
+    function clearInputField() {
+      document.getElementById('rawInput').value = '';
+      storedRecordsMap = {};
+      localStorage.removeItem(`h2_raw_logs_${currentUser}`);
+      localStorage.removeItem(`h2_records_${currentUser}`);
+      processData();
+    }
+
+    function parseWeight(str) {
+      if (!str) return 0;
+      let clean = str.toString().toLowerCase().replace(',', '.');
+      clean = clean.replace(/!\s*\d*\.?\d+\s*(?:бонус[а-я]*|bonus)?/gi, '');
+      const matches = clean.match(/\d*\.?\d+/g);
+      if (!matches) return 0;
+      return matches.reduce((acc, curr) => acc + parseFloat(curr), 0);
+    }
+
+    function parseMoneyAndDebt(str) {
+      if (!str) return { eurPaid: 0, debtNew: 0, debtRepaid: 0, advance: 0, bonusGrams: 0, cardAmount: 0, rawDebtText: '' };
+
+      const clean = str.toString().toLowerCase().replace(',', '.').trim();
+      let eurPaid = 0;
+      let debtNew = 0;
+      let debtRepaid = 0;
+      let advance = 0;
+      let bonusGrams = 0;
+      let cardAmount = 0;
+      let rawDebtText = clean;
+
+      const bonusMatch = clean.match(/!(\d*\.?\d+)|(?:бонус[а-я]*|bonus)\s*[:=\-+]?\s*(\d*\.?\d+)|(\d*\.?\d+)\s*(?:бонус[а-я]*|bonus)/i);
+      if (bonusMatch) {
+        bonusGrams = parseFloat(bonusMatch[1] || bonusMatch[2] || bonusMatch[3] || 0);
+      }
+
+      const tokens = clean.split(/[\s,]+/);
+
+      tokens.forEach(token => {
+        if (token.includes('!') || token.includes('бонус') || token.includes('bonus')) {
+          // Ігноруємо бонус
+        } else if (token.includes('карта') || token.includes('карту')) {
+          const numMatch = token.match(/\d*\.?\d+/);
+          if (numMatch && numMatch[0] !== '') {
+            cardAmount += parseFloat(numMatch[0]);
+          }
+        } else if (token.includes('мої') || token.includes('мои')) {
+          const numMatch = token.match(/[-+]?\d*\.?\d+/);
+          if (numMatch && numMatch[0] !== '') {
+            advance += Math.abs(parseFloat(numMatch[0]));
+          }
+        } else if (token.includes('долг') || token.includes('борг')) {
+          const numMatch = token.match(/[-+]?\d*\.?\d+/);
+          if (numMatch && numMatch[0] !== '') {
+            const val = parseFloat(numMatch[0]);
+            if (val < 0) {
+              debtNew += Math.abs(val);
+            } else {
+              debtRepaid += val;
+            }
+          }
+        } else {
+          const num = parseFloat(token);
+          if (!isNaN(num) && num > 0) {
+            eurPaid += num;
+          }
+        }
+      });
+
+      return { eurPaid, debtNew, debtRepaid, advance, bonusGrams, cardAmount, rawDebtText };
+    }
+
+    function parseLogs(rawText) {
+      if (!rawText) return [];
+      const lines = rawText.split('\n').map(l => l.trim()).filter(l => l !== '');
+      let currentCategory = 'UNCATEGORIZED';
+      let currentDatePrefix = '';
+      const records = [];
+      const techHeaders = ['name', 'gramm', '€', 'time'];
+
+      let i = 0;
+      while (i < lines.length) {
+        const line = lines[i];
+
+        if (i + 3 < lines.length && 
+            lines[i+1].toLowerCase() === 'name' && 
+            lines[i+2].toLowerCase() === 'gramm' && 
+            lines[i+3] === '€') {
+          currentCategory = line.toUpperCase();
+          
+          registerVariety(currentCategory);
+
+          if (i + 4 < lines.length && (lines[i+4].includes('.') || lines[i+4].includes('/'))) {
+            currentDatePrefix = lines[i+4];
+            i += 5;
+          } else {
+            i += 4;
+          }
+          continue;
+        }
+
+        if (techHeaders.includes(line.toLowerCase())) {
+          i++;
+          continue;
+        }
+
+        if (i + 3 < lines.length) {
+          const clientName = lines[i];
+          const rawGramm = lines[i+1];
+          const rawMoney = lines[i+2];
+          const timeStr = lines[i+3];
+
+          if (timeStr.includes('.') || timeStr.includes(':')) {
+            const grammBonusMatch = rawGramm.match(/!(\d*\.?\d+)/);
+            const moneyData = parseMoneyAndDebt(rawMoney);
+            
+            if (grammBonusMatch && moneyData.bonusGrams === 0) {
+              moneyData.bonusGrams = parseFloat(grammBonusMatch[1]);
+            }
+
+            const baseGramm = parseWeight(rawGramm);
+            const fullTimeStr = (currentDatePrefix && !timeStr.includes('.')) ? `${currentDatePrefix} ${timeStr}` : timeStr;
+            const uniqueId = `${currentCategory}_${clientName}_${fullTimeStr}`.replace(/\s+/g, '');
+
+            records.push({
+              id: uniqueId,
+              category: currentCategory,
+              clientName,
+              rawGramm,
+              baseGramm,
+              rawMoney,
+              eurPaid: moneyData.eurPaid,
+              debtNew: moneyData.debtNew,
+              debtRepaid: moneyData.debtRepaid,
+              advance: moneyData.advance,
+              bonusGrams: moneyData.bonusGrams,
+              cardAmount: moneyData.cardAmount,
+              rawDebtText: moneyData.rawDebtText,
+              timeStr: fullTimeStr
+            });
+
+            i += 4;
+            continue;
+          }
+        }
+        i++;
+      }
+      return records;
+    }
+
+    function parseRecordDateTime(timeStr) {
+      const now = new Date();
+      let year = now.getFullYear();
+      let month = now.getMonth();
+      let day = now.getDate();
+      let hour = 12;
+      let minute = 0;
+
+      const parts = timeStr.trim().split(/\s+/);
+
+      parts.forEach(p => {
+        if (p.includes(':')) {
+          const hm = p.split(':');
+          hour = parseInt(hm[0], 10) || 0;
+          minute = parseInt(hm[1], 10) || 0;
+        } else if (p.includes('.')) {
+          const dmp = p.split('.');
+          if (dmp[0]) day = parseInt(dmp[0], 10);
+          if (dmp[1]) month = parseInt(dmp[1], 10) - 1;
+          if (dmp[2]) year = parseInt(dmp[2], 10);
+          if (year < 100) year += 2000;
+        }
+      });
+
+      return new Date(year, month, day, hour, minute);
+    }
+
+    function processData() {
+      const rawText = document.getElementById('rawInput').value;
+      const newlyParsed = parseLogs(rawText);
+
+      storedRecordsMap = {};
+      newlyParsed.forEach(rec => {
+        storedRecordsMap[rec.id] = rec;
+      });
+
+      saveUserData();
+
+      parsedRecordsGlobal = Object.values(storedRecordsMap).map(r => ({
+        ...r,
+        parsedDateObj: parseRecordDateTime(r.timeStr)
+      }));
+
+      let totalGrossRevenue = 0;
+      let totalExactWeight = 0;
+      let totalBaseWeight = 0;
+      let totalCostOfGoods = 0;
+      let totalDealsProfit = 0;
+      let totalCardAmount = 0;
+
+      const clientNewDebts = {};
+      const clientRepaidDebts = {};
+      const clientAdvances = {};
+      const buyersMap = {};
+      const categories = {};
+
+      parsedRecordsGlobal.forEach(r => {
+        const vData = GLOBAL_VARIETIES[r.category] || { costPer100g: 600, purchasedGrams: 0 };
+        const costPer100g = vData.costPer100g || 600;
+
+        r.exactGramm = r.baseGramm * 1.1;
+        r.pricePerGram = costPer100g / 100;
+        r.dealCost = r.exactGramm * r.pricePerGram;
+        
+        r.dealRevenue = r.baseGramm * 10;
+        r.dealProfit = r.dealRevenue - r.dealCost;
+
+        if (r.cardAmount > 0) {
+          totalCardAmount += r.cardAmount;
+        }
+
+        if (r.bonusGrams > 0) {
+          // Розрахунок бонусу без множення на 1.1: просто грами на собівартість
+          r.bonusCostEur = r.bonusGrams * r.pricePerGram;
+        } else {
+          r.bonusCostEur = 0;
+        }
+
+        totalGrossRevenue += r.dealRevenue;
+        totalExactWeight += r.exactGramm;
+        totalBaseWeight += r.baseGramm;
+        totalCostOfGoods += r.dealCost;
+        totalDealsProfit += r.dealProfit;
+
+        if (!buyersMap[r.clientName]) {
+          buyersMap[r.clientName] = { deals: 0, exactGramm: 0, revenue: 0, profit: 0 };
+        }
+        buyersMap[r.clientName].deals += 1;
+        buyersMap[r.clientName].exactGramm += r.exactGramm;
+        buyersMap[r.clientName].revenue += r.dealRevenue;
+        buyersMap[r.clientName].profit += r.dealProfit;
+
+        if (r.debtNew > 0) clientNewDebts[r.clientName] = (clientNewDebts[r.clientName] || 0) + r.debtNew;
+        if (r.debtRepaid > 0) clientRepaidDebts[r.clientName] = (clientRepaidDebts[r.clientName] || 0) + r.debtRepaid;
+        if (r.advance > 0) clientAdvances[r.clientName] = (clientAdvances[r.clientName] || 0) + r.advance;
+
+        if (!categories[r.category]) {
+          categories[r.category] = { deals: 0, baseGramm: 0, exactGramm: 0, revenue: 0, costOfGoods: 0, profit: 0 };
+        }
+
+        categories[r.category].deals += 1;
+        categories[r.category].baseGramm += r.baseGramm;
+        categories[r.category].exactGramm += r.exactGramm;
+        categories[r.category].revenue += r.dealRevenue;
+        categories[r.category].costOfGoods += r.dealCost;
+        categories[r.category].profit += r.dealProfit;
+      });
+
+      // Очищаємо старі авто-витрати та оновлюємо тільки KARTE
+      Object.keys(customExpenseCategories).forEach(cat => {
+        if (cat.startsWith('🎁 Бонус') || cat === 'KARTE') delete customExpenseCategories[cat];
+      });
+
+      if (totalCardAmount > 0) {
+        customExpenseCategories['KARTE'] = parseFloat(totalCardAmount.toFixed(2));
+      }
+
+      renderExpenseCategories();
+
+      const totalExpenses = Object.values(customExpenseCategories).reduce((acc, curr) => acc + (parseFloat(curr) || 0), 0);
+
+      document.getElementById('totalExpensesSumLabel').innerText = `${totalExpenses.toFixed(2)} €`;
+
+      let totalActiveDebt = 0;
+      const clientActiveDebts = {};
+      const allClients = new Set([...Object.keys(clientNewDebts), ...Object.keys(clientRepaidDebts)]);
+      allClients.forEach(name => {
+        const active = (clientNewDebts[name] || 0) - (clientRepaidDebts[name] || 0);
+        if (active > 0) {
+          clientActiveDebts[name] = active;
+          totalActiveDebt += active;
+        }
+      });
+
+      const netProfitRaw = totalDealsProfit;
+      const netProfitFinal = totalDealsProfit - totalExpenses;
+      const netProfitWithDebt = netProfitFinal - totalActiveDebt;
+
+      const actualRevenue = totalGrossRevenue - totalActiveDebt - totalExpenses;
+
+      document.getElementById('kpiGrossRevenue').innerText = `${totalGrossRevenue.toFixed(2)} €`;
+      document.getElementById('kpiRevenue').innerText = `${actualRevenue.toFixed(2)} €`;
+      
+      document.getElementById('kpiNetProfitRaw').innerText = `${netProfitRaw.toFixed(2)} €`;
+      document.getElementById('kpiNetProfitFinal').innerText = `${netProfitFinal.toFixed(2)} €`;
+      document.getElementById('kpiNetProfitWithDebt').innerText = `${netProfitWithDebt.toFixed(2)} €`;
+
+      document.getElementById('kpiCostOfGoods').innerText = `${totalCostOfGoods.toFixed(2)} €`;
+      document.getElementById('kpiActiveDebt').innerText = `${totalActiveDebt.toFixed(2)} €`;
+      document.getElementById('kpiExactWeight').innerText = `${totalExactWeight.toFixed(2)} г`;
+      document.getElementById('kpiDeals').innerText = parsedRecordsGlobal.length;
+
+      renderDebtsList('activeDebtsList', clientActiveDebts, 'text-neonYellow', '-');
+      renderDebtsList('repaidDebtsList', clientRepaidDebts, 'text-emerald-400', '+');
+      renderDebtsList('advancesList', clientAdvances, 'text-neonBlue', '⚡ ');
+      renderVarietyStats(categories);
+      renderTop5Buyers(buyersMap);
+      renderTable(parsedRecordsGlobal);
+      renderCharts(categories);
+      renderInteractiveHeatmap();
+    }
+
+    function renderDebtsList(elementId, debtObj, colorClass, prefix) {
+      const container = document.getElementById(elementId);
+      const keys = Object.keys(debtObj);
+      if (keys.length === 0) {
+        container.innerHTML = '<p class="text-gray-500">Немає даних</p>';
+        return;
+      }
+      container.innerHTML = keys.map(client => `
+        <div class="flex justify-between items-center border-b border-brandBorder/40 pb-1">
+          <span class="text-gray-300 font-medium">${client}</span>
+          <span class="font-mono font-bold ${colorClass}">${prefix}${debtObj[client].toFixed(2)} €</span>
+        </div>
+      `).join('');
+    }
+
+    function renderVarietyStats(categories) {
+      const tbody = document.getElementById('varietyStatsTableBody');
+      const varieties = Object.keys(categories);
+
+      if (varieties.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-500">Записи відсутні</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = varieties.map(varName => {
+        const c = categories[varName];
+        const style = getCategoryStyle(varName);
+        return `
+          <tr class="hover:bg-brandDark/40 transition">
+            <td class="p-2.5">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold font-mono" style="background: ${style.bg}; color: ${style.text}; border: 1px solid ${style.border}40;">
+                ${varName}
+              </span>
+            </td>
+            <td class="p-2.5 text-center font-mono text-gray-300">${c.deals}</td>
+            <td class="p-2.5 font-mono font-bold text-neonGreen">${c.exactGramm.toFixed(2)} г</td>
+            <td class="p-2.5 font-mono font-bold text-white">${c.revenue.toFixed(2)} €</td>
+            <td class="p-2.5 font-mono font-bold text-neonBlue">${c.profit.toFixed(2)} €</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderTop5Buyers(buyersMap) {
+      const tbody = document.getElementById('topBuyersTableBody');
+      const top5Buyers = Object.keys(buyersMap)
+        .map(name => ({ name, ...buyersMap[name] }))
+        .sort((a, b) => b.exactGramm - a.exactGramm)
+        .slice(0, 5);
+
+      if (top5Buyers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-500">Записи відсутні</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = top5Buyers.map((b, idx) => `
+        <tr class="hover:bg-brandDark/40 transition">
+          <td class="p-2.5 font-mono text-gray-400 font-bold">${idx + 1}</td>
+          <td class="p-2.5 font-bold text-white flex items-center gap-1.5">
+            ${idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '👤'} ${b.name}
+          </td>
+          <td class="p-2.5 text-center font-mono text-gray-300">${b.deals}</td>
+          <td class="p-2.5 font-mono font-bold text-neonGreen">${b.exactGramm.toFixed(2)} г</td>
+          <td class="p-2.5 font-mono font-bold text-white">${b.revenue.toFixed(2)} €</td>
+        </tr>
+      `).join('');
+    }
+
+    function renderTable(records) {
+      const tbody = document.getElementById('recordsTableBody');
+      if (records.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="12" class="p-4 text-center text-gray-500">Записи відсутні</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = records.map(r => {
+        const style = getCategoryStyle(r.category);
+        return `
+          <tr class="hover:bg-brandDark/40 transition">
+            <td class="p-3">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold font-mono" style="background: ${style.bg}; color: ${style.text}; border: 1px solid ${style.border}40;">
+                ${r.category}
+              </span>
+            </td>
+            <td class="p-3 font-semibold text-gray-200">${r.clientName}</td>
+            <td class="p-3 font-mono text-gray-400">${r.baseGramm.toFixed(2)} г</td>
+            <td class="p-3 font-mono font-bold text-neonGreen">${r.exactGramm.toFixed(2)} г</td>
+            <td class="p-3 font-mono text-neonRed">${r.pricePerGram ? r.pricePerGram.toFixed(2) : '0.00'} €</td>
+            <td class="p-3 font-mono text-neonRed">${r.dealCost ? r.dealCost.toFixed(2) : '0.00'} €</td>
+            <td class="p-3 font-mono font-bold text-white">${r.dealRevenue ? r.dealRevenue.toFixed(2) : '0.00'} €</td>
+            <td class="p-3 font-mono font-bold text-neonBlue">${r.dealProfit ? r.dealProfit.toFixed(2) : '0.00'} €</td>
+            <td class="p-3 font-mono font-bold ${r.bonusGrams > 0 ? 'text-neonYellow' : 'text-gray-500'}">
+              ${r.bonusGrams > 0 ? `${r.bonusGrams}г (${r.bonusCostEur.toFixed(2)}€)` : '-'}
+            </td>
+            <td class="p-3 font-mono text-[11px] ${r.cardAmount > 0 ? 'text-neonBlue font-bold' : r.advance > 0 ? 'text-neonBlue' : r.debtNew > 0 ? 'text-neonYellow' : r.debtRepaid > 0 ? 'text-emerald-400' : 'text-gray-500'}">
+              ${r.rawDebtText || '-'}
+            </td>
+            <td class="p-3 font-mono text-gray-400 text-[11px]">${r.timeStr}</td>
+            <td class="p-3 text-center">
+              <button onclick="removeRecord('${r.id}')" class="text-gray-500 hover:text-red-400 font-bold px-2 py-1">×</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function filterTable() {
+      const val = document.getElementById('tableSearch').value.toLowerCase();
+      const rows = document.querySelectorAll('#recordsTableBody tr');
+      rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        row.style.display = text.includes(val) ? '' : 'none';
+      });
+    }
+
+    function renderCharts(categories) {
+      const labels = Object.keys(categories);
+      const weights = labels.map(c => categories[c].exactGramm);
+      const revenues = labels.map(c => categories[c].revenue);
+      const colors = labels.map(c => getCategoryStyle(c).border);
+
+      if (barChart) barChart.destroy();
+      if (pieChart) pieChart.destroy();
+
+      const ctxBar = document.getElementById('weightBarChart').getContext('2d');
+      barChart = new Chart(ctxBar, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            data: weights,
+            backgroundColor: colors.map(c => c + '80'),
+            borderColor: colors,
+            borderWidth: 1.5,
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#94A3B8', font: { size: 10 } }, grid: { display: false } },
+            y: { ticks: { color: '#94A3B8', font: { size: 10 } }, grid: { color: '#1A2133' } }
+          }
+        }
+      });
+
+      const ctxPie = document.getElementById('revenuePieChart').getContext('2d');
+      pieChart = new Chart(ctxPie, {
+        type: 'doughnut',
+        data: {
+          labels,
+          datasets: [{
+            data: revenues,
+            backgroundColor: colors.map(c => c + 'CC'),
+            borderColor: '#0F121C',
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'right', labels: { color: '#94A3B8', font: { size: 10 } } }
+          }
+        }
+      });
+    }
+
+    function shiftWeek(offset) {
+      selectedWeekStart.setDate(selectedWeekStart.getDate() + (offset * 7));
+      renderInteractiveHeatmap();
+    }
+
+    function resetToCurrentWeek() {
+      selectedWeekStart = getMonday(new Date());
+      renderInteractiveHeatmap();
+    }
+
+    function onDatePicked(dateVal) {
+      if (!dateVal) return;
+      selectedWeekStart = getMonday(new Date(dateVal));
+      renderInteractiveHeatmap();
+    }
+
+    function renderInteractiveHeatmap() {
+      const daysNames = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'];
+      
+      const weekEnd = new Date(selectedWeekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+
+      const formatDateShort = (d) => `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}`;
+      document.getElementById('heatmapPeriodText').innerText = `${formatDateShort(selectedWeekStart)} — ${formatDateShort(weekEnd)}`;
+
+      const matrix = Array(7).fill(0).map(() => Array(24).fill(0));
+      let maxDealsInHour = 0;
+
+      parsedRecordsGlobal.forEach(r => {
+        if (!r.parsedDateObj) return;
+        const d = r.parsedDateObj;
+
+        if (d >= selectedWeekStart && d <= new Date(weekEnd.getTime() + 86399999)) {
+          let jsDay = d.getDay();
+          let mondayIndex = jsDay === 0 ? 6 : jsDay - 1;
+          let hour = d.getHours();
+
+          matrix[mondayIndex][hour] += 1;
+          if (matrix[mondayIndex][hour] > maxDealsInHour) {
+            maxDealsInHour = matrix[mondayIndex][hour];
+          }
+        }
+      });
+
+      const now = new Date();
+      const currentJsDay = now.getDay();
+      const currentMondayIndex = currentJsDay === 0 ? 6 : currentJsDay - 1;
+      const currentHour = now.getHours();
+      const isCurrentWeek = getMonday(now).getTime() === selectedWeekStart.getTime();
+
+      const rowsContainer = document.getElementById('heatmapGridRows');
+      rowsContainer.innerHTML = '';
+
+      for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
+        const rowDate = new Date(selectedWeekStart);
+        rowDate.setDate(rowDate.getDate() + dayIdx);
+
+        const rowDiv = document.createElement('div');
+        rowDiv.className = 'grid grid-cols-[60px_repeat(24,1fr)] gap-1 items-center';
+
+        const isToday = isCurrentWeek && dayIdx === currentMondayIndex;
+        const dayLabel = document.createElement('div');
+        dayLabel.className = `text-[10px] font-mono flex items-center justify-between pr-1.5 ${isToday ? 'text-neonBlue font-bold' : 'text-gray-400'}`;
+        dayLabel.innerHTML = `<span>${daysNames[dayIdx]}</span><span class="text-[8px] text-gray-500">${String(rowDate.getDate()).padStart(2,'0')}</span>`;
+        rowDiv.appendChild(dayLabel);
+
+        for (let h = 0; h < 24; h++) {
+          const count = matrix[dayIdx][h];
+          const cell = document.createElement('div');
+          const isNow = isToday && h === currentHour;
+
+          let bgStyle = 'background-color: #0D111A; border: 1px solid rgba(26, 33, 51, 0.6);';
+          if (count > 0) {
+            const ratio = count / (maxDealsInHour || 1);
+            if (ratio <= 0.33) {
+              bgStyle = 'background-color: rgba(6, 78, 59, 0.65); border: 1px solid rgba(16, 185, 129, 0.3);';
+            } else if (ratio <= 0.66) {
+              bgStyle = 'background-color: rgba(5, 150, 105, 0.85); border: 1px solid rgba(52, 211, 153, 0.5);';
+            } else {
+              bgStyle = 'background-color: #00FF88; border: 1px solid #6EE7B7; box-shadow: 0 0 6px rgba(0, 255, 136, 0.5);';
+            }
+          }
+
+          cell.className = `hm-cell h-5 rounded-[3px] flex items-center justify-center text-[9px] font-mono font-bold cursor-pointer ${isNow ? 'hm-current-time' : ''}`;
+          cell.style = bgStyle;
+
+          if (count > 0) {
+            cell.innerHTML = `<span class="${count / (maxDealsInHour || 1) > 0.66 ? 'text-black' : 'text-emerald-100'}">${count}</span>`;
+          }
+
+          cell.title = `📅 ${daysNames[dayIdx]}, ${formatDateShort(rowDate)}\n⏰ Час: ${String(h).padStart(2,'0')}:00 - ${String(h).padStart(2,'0')}:59\n📊 Кількість угод: ${count}`;
+          rowDiv.appendChild(cell);
+        }
+
+        rowsContainer.appendChild(rowDiv);
+      }
+    }
+
+    loadGlobalVarieties();
+    initTelegramAuth();
+    loadUserData();
+    processData();
+  </script>
+</body>
+</html>
